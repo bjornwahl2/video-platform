@@ -1,7 +1,7 @@
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
-import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
+const sqlite3 = require('sqlite3');
+const { open } = require('sqlite');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 const DB_PATH = path.join(__dirname, 'videos.db');
 

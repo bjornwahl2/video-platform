@@ -1,8 +1,8 @@
-import { chromium } from 'playwright';
-import { saveVideoIfNew } from './db';
-import { generateThumbnail } from './ffmpeg';
-import { parse } from 'path';
-import fs from 'fs/promises';
+const { chromium } = require('playwright');
+const { saveVideoIfNew } = require('./db');
+const { generateThumbnail } = require('./ffmpeg');
+const { parse } = require('path');
+const fs = require('fs/promises');
 
 const TARGET_URL = 'https://video.skynordic.no/videoviewer/vd4.aspx?station=Osfossen&alle=Alle&height=480&width=600';
 const CHECK_INTERVAL_MS = 5000;

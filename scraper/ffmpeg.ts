@@ -1,5 +1,5 @@
-import ffmpeg from 'fluent-ffmpeg';
-import path from 'path';
+const ffmpeg = require('fluent-ffmpeg');
+const path = require('path');
 
 export function generateThumbnail(videoUrl: string, thumbnailPath: string): Promise<void> {
   return new Promise((resolve, reject) => {

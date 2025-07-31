@@ -1,0 +1,19 @@
+{
+  "name": "scraper",
+  "version": "1.0.0",
+  "main": "scraper.ts",
+  "scripts": {
+    "start": "ts-node scraper.ts"
+  },
+  "dependencies": {
+    "fluent-ffmpeg": "^2.1.2",
+    "playwright": "^1.43.1",
+    "sqlite3": "^5.1.6",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}
