@@ -1,0 +1,16 @@
+{
+  "name": "scraper-flat",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node dist/scraper.js",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "playwright": "^1.44.0",
+    "better-sqlite3": "^8.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
