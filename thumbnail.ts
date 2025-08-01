@@ -1,68 +1,65 @@
-import ffmpegPath from '@ffmpeg-installer/ffmpeg';
-import ffmpeg from 'fluent-ffmpeg';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
-import fetch from 'node-fetch';
+import fs from "fs";
+import path from "path";
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
+import { promisify } from "util";
+import { pipeline } from "stream";
+import fetch from "node-fetch";
 
-// ⬇️ ESM-compatible __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const streamPipeline = promisify(pipeline);
 
-// Set ffmpeg path from installer
-ffmpeg.setFfmpegPath(ffmpegPath.path);
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
-export async function createThumbnail(videoUrl: string, id: string): Promise<void> {
-  const outputFilename = `${id}.jpg`;
-  const outputPath = path.join(__dirname, 'thumbnails', outputFilename);
-
-  // Check if file already exists
-  if (fs.existsSync(outputPath)) {
-    console.log(`✅ Skipping existing thumbnail: ${outputFilename}`);
-    return;
-  }
+export async function createThumbnail(videoUrl: string, outputPath: string): Promise<void> {
+  const tempVideoPath = path.join("/tmp", path.basename(videoUrl).replace(/[^a-zA-Z0-9.]/g, "_"));
 
   try {
-    // Get video metadata duration
-    const duration = await getVideoDuration(videoUrl);
-    const midPoint = duration > 0 ? duration / 2 : 5;
+    // Download the video
+    const response = await fetch(videoUrl);
+    if (!response.ok || !response.body) {
+      throw new Error(`Failed to fetch video: ${response.statusText}`);
+    }
 
-    console.log(`📦 Running: ffmpeg -y -ss ${midPoint.toFixed(2)} -i "${videoUrl}" -vframes 1 -q:v 2 "${outputPath}"`);
+    await streamPipeline(response.body, fs.createWriteStream(tempVideoPath));
 
+    // Get video duration
+    const duration = await getVideoDuration(tempVideoPath);
+    const midPoint = duration / 2;
+
+    // Ensure thumbnails folder exists
+    const dir = path.dirname(outputPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Generate thumbnail
     await new Promise<void>((resolve, reject) => {
-      ffmpeg(videoUrl)
-        .inputOptions([`-ss ${midPoint.toFixed(2)}`])
-        .outputOptions(['-vframes 1', '-q:v 2'])
-        .on('end', () => {
-          console.log(`🖼️  Thumbnail saved: ${outputPath}`);
-          if (fs.existsSync(outputPath)) {
-            console.log(`✅ Exists after write? true ${outputPath}`);
-            resolve();
-          } else {
-            console.warn(`⚠️  FFmpeg completed but did not create file for: ${id}`);
-            resolve(); // resolve to continue even if not created
-          }
+      ffmpeg(tempVideoPath)
+        .on("end", () => {
+          fs.unlink(tempVideoPath, () => {}); // cleanup
+          resolve();
         })
-        .on('error', (err) => {
-          console.error(`❌ FFmpeg error for ${id}:`, err.message);
+        .on("error", (err) => {
+          fs.unlink(tempVideoPath, () => {}); // cleanup
           reject(err);
         })
-        .save(outputPath);
+        .screenshots({
+          timestamps: [midPoint],
+          filename: path.basename(outputPath),
+          folder: dir,
+          size: "320x?",
+        });
     });
-  } catch (err) {
-    console.error(`❌ Failed to create thumbnail for ${id}:`, err);
+  } catch (error) {
+    console.error("❌ Failed to create thumbnail:", error);
   }
 }
 
-async function getVideoDuration(videoUrl: string): Promise<number> {
+function getVideoDuration(filePath: string): Promise<number> {
   return new Promise((resolve, reject) => {
-    ffmpeg.ffprobe(videoUrl, (err, metadata) => {
-      if (err) {
-        console.warn(`⚠️  Failed to fetch metadata for: ${videoUrl}`);
-        resolve(0); // fallback
-      } else {
-        resolve(metadata.format.duration || 0);
-      }
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) return reject(err);
+      resolve(metadata.format.duration || 1);
     });
   });
 }

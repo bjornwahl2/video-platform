@@ -9,41 +9,49 @@ export async function extractAllVideos(): Promise<Video[]> {
   const page = await browser.newPage();
 
   await page.goto('https://video.skynordic.no/videoviewer/vd4.aspx?station=Osfossen');
-
-  // Wait for dropdown to load
   await page.waitForSelector('select[id="DropDownList1"]');
 
   const options = await page.$$eval('select[id="DropDownList1"] option', opts =>
     opts.map(o => ({ value: o.getAttribute('value'), title: o.textContent?.trim() || '' }))
   );
 
-  const videos: Video[] = [];
+  const existingVideos: Video[] = await fs.readFile('videos.json', 'utf-8')
+    .then(data => JSON.parse(data))
+    .catch(() => []);
+
+  const existingIds = new Set(existingVideos.map(v => v.id));
+  const newVideos: Video[] = [];
 
   for (const { value, title } of options) {
     if (!value || value === 'Velg opptak') continue;
 
-    const fileName = path.basename(value.replace(/\\/g, '/'));
-    const videoUrl = `https://video.skynordic.no/videoviewer/FileHandler.ashx?Fila=${encodeURIComponent(value)}`;
+    const normalized = value.replace(/\\/g, '/');
+    const fileName = path.basename(normalized);
+    const videoUrl = `https://video.skynordic.no/videoviewer/FileHandler.ashx?Fila=${value}`;
     const id = fileName;
+
+    if (existingIds.has(id)) continue;
+
     await createThumbnail(videoUrl, id);
 
-    videos.push({
+    newVideos.push({
       id,
       title,
       videoUrl,
       thumbnail: `thumbnails/${id}.jpg`,
       timestamp: new Date().toISOString(),
-      duration: '00:00' // placeholder — update if duration logic is added
+      duration: '00:00' // placeholder
     });
   }
 
-  await fs.writeFile('videos.json', JSON.stringify(videos, null, 2));
+  const allVideos = [...existingVideos, ...newVideos];
+  await fs.writeFile('videos.json', JSON.stringify(allVideos, null, 2));
   await browser.close();
 
-  return videos;
+  return allVideos;
 }
 
-// Run immediately if this is a direct script call
+// Run directly if executed from CLI
 if (import.meta.url.endsWith(process.argv[1])) {
   extractAllVideos()
     .then(() => console.log('✅ Video scraping complete.'))
