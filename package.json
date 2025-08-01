@@ -1,10 +1,9 @@
 {
-  "name": "scraper-flat",
+  "name": "video-scraper",
   "version": "1.0.0",
-  "type": "commonjs",
   "scripts": {
-    "start": "node dist/scraper.js",
-    "build": "tsc"
+    "build": "tsc",
+    "start": "node dist/scraper.js"
   },
   "dependencies": {
     "playwright": "^1.44.0",
