@@ -1,25 +1,46 @@
-import Database from 'better-sqlite3';
+import fs from 'fs/promises';
+import path from 'path';
 
-const db = new Database('videos.db');
-db.exec(\`
-  CREATE TABLE IF NOT EXISTS recordings (
-    id TEXT PRIMARY KEY,
-    title TEXT,
-    timestamp TEXT,
-    duration TEXT,
-    videoUrl TEXT,
-    thumbnail TEXT
-  );
-\`);
+export interface Video {
+  id: string;
+  title: string;
+  timestamp: string;
+  duration: string;
+  thumbnail: string;
+  videoUrl: string;
+}
 
-export function saveVideoIfNew(video: any): boolean {
-  const exists = db.prepare('SELECT 1 FROM recordings WHERE id = ?').get(video.id);
-  if (exists) return false;
+const DB_PATH = path.resolve('videos.json');
 
-  const stmt = db.prepare(\`
-    INSERT INTO recordings (id, title, timestamp, duration, videoUrl, thumbnail)
-    VALUES (@id, @title, @timestamp, @duration, @videoUrl, @thumbnail)
-  \`);
-  stmt.run(video);
-  return true;
+export async function load(): Promise<Video[]> {
+  try {
+    const data = await fs.readFile(DB_PATH, 'utf-8');
+    return JSON.parse(data) as Video[];
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function save(video: Video): Promise<void> {
+  const videos = await load();
+  videos.push(video);
+  await fs.writeFile(DB_PATH, JSON.stringify(videos, null, 2), 'utf-8');
+}
+
+export async function has(id: string): Promise<boolean> {
+  const videos = await load();
+  return videos.some((v) => v.id === id);
+}
+
+export async function getById(id: string): Promise<Video | undefined> {
+  const videos = await load();
+  return videos.find((v) => v.id === id);
+}
+
+export async function getAllVideos(): Promise<{ id: string; url: string }[]> {
+  const videos = await load();
+  return videos.map((v) => ({
+    id: v.id,
+    url: v.videoUrl,
+  }));
 }

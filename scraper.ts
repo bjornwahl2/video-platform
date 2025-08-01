@@ -1,21 +1,36 @@
-import { extractLatestVideo } from './extract';
-import { saveVideoIfNew } from './video';
-import { generateThumbnail } from './thumbnail';
+console.log("🚀 Scraper started");
+import fs from 'fs/promises';
+import fsSync from 'fs';
+import path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { createThumbnail } from './thumbnail';
+import { getAllVideos } from './video';
 
-async function run() {
-  try {
-    const video = await extractLatestVideo();
-    if (!video) return;
+const execPromise = promisify(exec);
 
-    const saved = saveVideoIfNew(video);
-    if (!saved) return;
+async function main() {
+  console.log('🚀 Starting scraper...');
 
-    await generateThumbnail(video.videoUrl, video.id);
-    console.log('[✓] New video saved:', video.videoUrl);
-  } catch (err) {
-    console.error('[!] Scraper error:', err);
+  const videos = await getAllVideos();
+  console.log(`📦 Found ${videos.length} video(s) to process.`);
+
+  for (const video of videos) {
+    const { id, url } = video;
+    const thumbnailPath = path.join(process.cwd(), 'thumbnails', `${id.replace(/\.mp4$/, '')}.jpg`);
+    const exists = fsSync.existsSync(thumbnailPath);
+    if (exists) {
+      console.log(`⏭️ Skipping existing thumbnail: ${id}`);
+      continue;
+    }
+
+    console.log(`🎯 Generating thumbnail for: ${id}`);
+    await createThumbnail(url, id);
   }
+
+  console.log('✅ Scraper finished.');
 }
 
-setInterval(run, 5000);
-run();
+main().catch((err) => {
+  console.error('❌ Scraper crashed:', err);
+});
